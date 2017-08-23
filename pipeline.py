@@ -1,6 +1,33 @@
 from moviepy.editor import VideoFileClip
 import numpy as np
 import cv2
+import glob
+import matplotlib.image as mpimg
+
+
+def calibrate():
+    images = glob.glob('camera_cal/calibration*.jpg')
+    objpoints = []
+    imgpoints = []
+    dim = (9, 6)
+    objp = np.zeros((dim[0] * dim[1], 3), np.float32)
+    objp[:, :2] = np.mgrid[0:dim[0], 0:dim[1]].T.reshape(-1, 2)
+
+    for fname in images:
+        img = mpimg.imread(fname)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        ret, corners = cv2.findChessboardCorners(gray, dim, None)
+        if ret:
+            imgpoints.append(corners)
+            objpoints.append(objp)
+
+    ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
+    return mtx, dist
+
+
+def undistort(img, mtx, dist):
+    undistorted = cv2.undistort(img, mtx, dist, None, mtx)
+    return undistorted
 
 
 def region_of_interest(img):
@@ -55,19 +82,6 @@ def draw_lane(img, warped_img, left_fitx, right_fitx, ploty, Minv):
     # Combine the result with the original image
     final = cv2.addWeighted(img, 1, newwarp, 0.3, 0)
     return final
-
-
-def scale_sobel(img):
-    # Grayscale image
-    # NOTE: we already saw that standard grayscaling lost color information for the lane lines
-    # Explore gradients in other colors spaces / color channels to see what might work better
-    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-
-    # Sobel x
-    sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0)  # Take the derivative in x
-    abs_sobelx = np.absolute(sobelx)  # Absolute x derivative to accentuate lines away from horizontal
-    scaled_sobel = np.uint8(255 * abs_sobelx / np.max(abs_sobelx))
-    return scaled_sobel
 
 
 def draw_src_dst(img, src):
@@ -161,8 +175,9 @@ def fit_polynomial(warped, img_height):
     # Calculate curvature radius
     y_eval = np.max(ploty)
     # Define conversions in x and y from pixels space to meters
+    lane_width = (left_fitx - right_fitx)[-1]
+    xm_per_pix = 3.7 / lane_width  # meters per pixel in x dimension
     ym_per_pix = 30 / 720  # meters per pixel in y dimension
-    xm_per_pix = 3.7 / 700  # meters per pixel in x dimension
 
     # Fit new polynomials to x,y in world space
     left_fit_cr = np.polyfit(ploty * ym_per_pix, left_fitx * xm_per_pix, 2)
@@ -170,7 +185,7 @@ def fit_polynomial(warped, img_height):
     # Calculate the new radii of curvature
     left_curverad = ((1 + (2 * left_fit_cr[0] * y_eval * ym_per_pix + left_fit_cr[1]) ** 2) ** 1.5) / np.absolute(2 * left_fit_cr[0])
     right_curverad = ((1 + (2 * right_fit_cr[0] * y_eval * ym_per_pix + right_fit_cr[1]) ** 2) ** 1.5) / np.absolute(2 * right_fit_cr[0])
-    
+
     # Calculate deviation from the center
     camera_position = out_img.shape[1] / 2
     center_offset_meters = (camera_position - ((left_fitx[-1] + right_fitx[-1]) / 2)) * xm_per_pix
@@ -200,22 +215,22 @@ def compose_final(img, img1, img2, img3, img4):
 
 
 def process_image(img):
+    mtx, dist = calibrate()
+    img = undistort(img, mtx, dist)
     img_width, img_height = img.shape[1], img.shape[0]
     r_channel, g_channel, b_channel = img[:, :, 0], img[:, :, 1], img[:, :, 2]
 
     hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS).astype(np.float)
     h_channel, l_channel, s_channel = hls[:, :, 0], hls[:, :, 1], hls[:, :, 2]
 
-    scaled_sobel = scale_sobel(img)
-
-    sxbinary = binarize_channels(scaled_sobel, 50, 255)
     s_binary = binarize_channels(s_channel, 150, 255)
     r_binary = binarize_channels(r_channel, 230, 255)
     g_binary = binarize_channels(g_channel, 150, 255)
+    l_binary = binarize_channels(l_channel, 140, 255)
 
     # Combine the two binary thresholds
     combined_binary = np.zeros_like(s_binary)
-    combined_binary[(g_binary == 1) & (r_binary == 1) | (s_binary == 1) | (sxbinary == 1)] = 1
+    combined_binary[(g_binary == 1) & (r_binary == 1) | ((s_binary == 1) & (l_binary == 1))] = 1
     combined_binary = region_of_interest(combined_binary)
 
     src = np.float32([[(203, 720), (585, 460), (695, 460), (1127, 720)]])
