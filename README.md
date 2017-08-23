@@ -53,7 +53,7 @@ To demonstrate this step, I will describe how I apply the distortion correction 
 
 #### 2. Describe how (and identify where in your code) you used color transforms, gradients or other methods to create a thresholded binary image.  Provide an example of a binary image result.
 
-Based on forum discussions, x gradient didn't seem so popular as it was noisy. But I followed the course lessons and used it. I used R and G channel and combined that with S channel and x gradient.
+Based on forum discussions, x gradient didn't seem so popular as it was noisy. After the first review of my project, I discarded the x gradient. I used R and G channel and combined that with S and G channel.
 
 ![alt text](./output_images/combined_binary.png)
 
@@ -115,16 +115,20 @@ Using all the images above, I use `compose_final` function in `pipeline.py` to p
 
 ### Pipeline (video)
 
-Here's a [link to my video result](https://youtu.be/tQ1IGnQseyE)
+Here's a [link to my video result](https://youtu.be/cnGFnBN0R4I)
 
 ---
 
 ### Discussion
 
-I regret not using the udacity discussion forum much more in the course. I received a lot of help from reading others' questions and answers. The topics that I received help using the forum include using R and G channel together with S channel, src/dst points, region of interest, lane offset, etc. 
+I regret not using the udacity discussion forum much more in the course. I received a lot of help from reading others' questions and answers. The topics that I received help using the forum include choosing which channels to use, src/dst points, region of interest, lane offset, etc. 
 
-Choosing RG | S | X-gradient, and their thresholds, were a bit of an arbitrary process. I would like to investigate more on what the optimal configuration is for detecting lanes. Same goes for src/dst points.
+Choosing RG | SL, and their thresholds, were a bit of an arbitrary process. I would like to investigate more on what the optimal configuration is for detecting lanes. Same goes for src/dst points.
 
 There's a slight jitter towards the end of the video. I would like to make my pipeline robust for such using smoothing and averaging.
 
-My pipeline currently does not pass the challenge video and harder challenge video.
+My pipeline currently does not pass the challenge video and harder challenge video because of three reasons: 
+
+1) My thresholds and channel are not robust enough to detect lanes in the shadow.
+2) My perspective transform are not robust enough to account for hard curves in the harder challenge video.
+3) My region of interest are masking too much of areas that may actually be useful.
