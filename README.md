@@ -21,7 +21,7 @@ The goals / steps of this project are the following:
 
 ### Camera Calibration
 
-The code for this step is contained in `calibration.py`. OpenCV provides a nice function that calibrates a camera given a chessboard corners. All we define is the number of rows and columns for the chessboard corners. Using the provided OpenCV calibration function, we get the distortion correction matrix. I applied this distortion correction to the test image using the `cv2.undistort()` function and obtained this result: 
+The code for this step is contained in `calibrate()`. OpenCV provides a nice function that calibrates a camera given a chessboard corners. All we define is the number of rows and columns for the chessboard corners. Using the provided OpenCV calibration function, we get the distortion correction matrix. I applied this distortion correction to the test image using the `cv2.undistort()` function and obtained this result: 
 ![alt text](./output_images/checkbox.png)
 
 ### Pipeline
